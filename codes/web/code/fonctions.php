@@ -1,209 +1,111 @@
 <?php
-// Connexion à la base métier rugby
-function connexionBD() {
-    try {
-        $madb = new PDO('sqlite:/var/data/data.db');
-        $madb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    } 
-    catch (PDOException $e) {
-        echo "Connection impossible : ", $e->getMessage();
-        die();
-    }  
-    return $madb;
-}
+// ce fichier contient toutes les fonctions, afin de rendre le reste du code plus lisible et fluide.
+// nous avons tous les deux travaillé dessus. un commentaire indiquera quelle fonction a été écrite par qui
 
-// Connexion à la base d'authentification des utilisateurs
-function connexionAuthBD() {
-    try {
-        $authdb = new PDO('sqlite:/var/data/auth.db');
-        $authdb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    } 
-    catch (PDOException $e) {
-        echo "Connection impossible auth : ", $e->getMessage();
-        die();
-    }  
-    return $authdb;
-}
+    function authentification($mail, $pass) {
+        // écrite par: Thomas LE FLOC'H (fortement inspiré de ce qui a été vu en TD/TP)
+        $db = new PDO("sqlite:db/comptes.sqlite");
 
-// Affichage du tableau HTML
-function afficheTableau($tab){
-    if (empty($tab)) {
-        echo "<p>Aucun résultat pour cette sélection.</p>";
-        return;
+        // on sécurise les entrées utilisateur
+        $mail = $db->quote($mail);
+        $pass = $db->quote($pass);
+        $sql = "SELECT EMAIL, STATUT FROM utilisateurs WHERE EMAIL=$mail AND PASS=$pass";
+
+        $res = $db->query($sql);
+        if ($res) {
+            $tab = $res->fetch(PDO::FETCH_ASSOC);
+        }
+        else {
+            echo "<p>erreur</p>";
+        }
+
+        return $tab;
     }
-    echo '<table>';    
+
+	function redirect($url,$tps) {
+    // fonction fournie en TD par l'enseignant.
+    // Intégrée dans ce code par Thomas LE FLOC'H pour utilisation dans index.php et connexion.php
+		$temps = $tps * 1000;
+		
+		echo "<script type=\"text/javascript\">\n"
+		. "<!--\n"
+		. "\n"
+		. "function redirect() {\n"
+		. "window.location='" . $url . "'\n"
+		. "}\n"
+		. "setTimeout('redirect()','" . $temps ."');\n"
+		. "\n"
+		. "// -->\n"
+		. "</script>\n";
+	}
+
+    function ajouter_log($message) {
+        // Écrite par: Thomas LE FLOC'H
+        // Écrit le message passé en paramètre dans logs/logins.log
+        $fichierlog = fopen("logs/logins.log", "a+");
+        fputs($fichierlog, $message);
+        fputs($fichierlog, "\n");
+        fclose($fichierlog);
+    }
+
+
+    function getFilmEtRealisateur() {
+        // écrite par Thomas LE FLOC'H
+        $db = new PDO("sqlite:db/DVDTheque.sqlite");
+        // || est l'opérateur de concaténation en SQL
+        $sql = "SELECT NoFilm AS Numéro, LienAffiche AS Affiche, Titre,DateSortie AS \"Date de sortie\",Genre,(Prenom || ' ' || Nom) AS Réalisateur
+        FROM Film JOIN Realisateur ON Film.NoRealisateur = Realisateur.NoRealisateur;";
+        $res = $db->query($sql);
+        if ($res) {
+            $tab = $res->fetchAll(PDO::FETCH_ASSOC);
+        }
+        return $tab;
+    }
+
+
+function afficheTableau($tab) {
+    // fonction récupérée des TD
+    // intégrée par Thomas LE FLOC'H
+    echo '<table>';	
+	echo '<tr>';// les entetes des colonnes qu'on lit dans le premier tableau par exemple
+	foreach($tab[0] as $colonne=>$valeur){		
+		echo "<th>$colonne</th>";		
+	}
+	echo "</tr>\n";
+	// le corps de la table
+	foreach($tab as $ligne){
+		echo '<tr>';
+		foreach($ligne as $cellule)	{
+			echo "<td>$cellule</td>";		
+		}
+		echo "</tr>\n";
+	}
+	echo '</table>';
+}
+function afficheTableauAvecAffiche($tab){
+    // inspirée de ce qui a été vu en TD, mais la fonction intègre les affiches de films
+    // écrite par Thomas LE FLOC'H
+    echo '<table>';	
     echo '<tr>';
-    foreach($tab[0] as $colonne=>$valeur){
-        echo "<th>$colonne</th>";
+    foreach($tab[0] as $colonne => $valeur){		
+        echo "<th>$colonne</th>";		
     }
     echo "</tr>\n";
+
+    // corps du tableau
     foreach($tab as $ligne){
         echo '<tr>';
-        foreach($ligne as $cellule) {
-            echo "<td>". htmlspecialchars($cellule) ."</td>";
+        foreach($ligne as $colonne => $cellule){
+            if ($colonne === 'Affiche') {
+                echo "<td><img src=\"$cellule\" alt=\"Affiche\" style=\"max-height:250px;\"></td>";
+            } else {
+                echo "<td>$cellule</td>";
+            }
         }
         echo "</tr>\n";
     }
     echo '</table>';
 }
 
-// EX1 : Lister tous les joueurs
-function listerjoueurs() {
-    $retour = false;
-    try {  
-        $connBD = connexionBD();
-        $req = "SELECT j.nom_joueur as Joueur, e.nom_equipe as Equipe 
-                FROM joueurs j 
-                JOIN equipes e ON e.num_equipe = j.num_equipe 
-                ORDER BY e.nom_equipe, j.nom_joueur";
-        $results = $connBD->query($req);
-        if ($results) {
-            $retour = $results->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } 
-    catch (PDOException $e) {
-        echo 'Erreur listerjoueurs : ' . $e->getMessage();
-    }
-    return $retour;
-}
 
-// EX2 : Formulaire de choix d'équipe
-function afficheFormEquipe() {
-    try {  
-        $connBD = connexionBD();
-        $req = "SELECT DISTINCT e.num_equipe, e.nom_equipe FROM equipes e INNER JOIN joueurs j ON e.num_equipe = j.num_equipe";
-        $results = $connBD->query($req);
-        $tab_equipes = $results ? $results->fetchAll(PDO::FETCH_ASSOC) : [];
-    } 
-    catch (PDOException $e) {
-        echo 'Erreur afficheFormEquipe : ' . $e->getMessage();
-        $tab_equipes = [];
-    }    
-    $selectedEquipe = $_GET['equipe'] ?? '';
-    ?>
-    <h1>Sélectionner une Equipe pour afficher la liste des joueurs</h1>
-    <form action="EX2_listejoueursParEquipe.php" method="get">
-        <fieldset>
-            <select name="equipe">
-                <option value="toutes" <?= $selectedEquipe === 'toutes' ? 'selected' : '' ?>>Toutes les Equipes</option>
-                <?php
-                    foreach($tab_equipes as $equipe){
-                        $sel = ($selectedEquipe == $equipe["num_equipe"]) ? 'selected' : '';
-                        echo '<option value="'.$equipe["num_equipe"] .'" '.$sel.'>'.$equipe["nom_equipe"].'</option>';
-                    }
-                ?>
-            </select>
-            <input type="submit" value="Afficher les joueurs"/>
-        </fieldset>
-    </form>
-    <?php
-}
-
-// EX2 : Lister les joueurs d'une équipe
-function listerjoueursParEquipe($numEquipe) {
-    $retour = false;
-    try {    
-        $connBD = connexionBD();    
-        $stmt = $connBD->prepare("SELECT j.nom_joueur as Joueur, e.nom_equipe as Equipe 
-                                  FROM joueurs j 
-                                  JOIN equipes e ON e.num_equipe = j.num_equipe 
-                                  WHERE j.num_equipe = :ne 
-                                  ORDER BY j.nom_joueur");
-        $stmt->execute(['ne' => (int)$numEquipe]);
-        $retour = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } 
-    catch (PDOException $e) {
-        echo "Erreur listerjoueursParEquipe : ", $e->getMessage();        
-    }
-    return $retour;
-}
-
-// EX2 : Récupérer le nom de l'équipe
-function getNomEquipeParNum($numEquipe) {
-    $retour = "Inconnue";
-    try {  
-        $connBD = connexionBD();
-        $stmt = $connBD->prepare("SELECT nom_equipe FROM equipes WHERE num_equipe = :ne");
-        $stmt->execute(['ne' => (int)$numEquipe]);
-        $tab = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($tab) {
-            $retour = $tab["nom_equipe"];
-        }
-    } 
-    catch (PDOException $e) {
-        echo 'Erreur nom equipe : ' . $e->getMessage();
-    }        
-    return $retour;
-}
-
-// EX3 : Formulaire d'insertion
-function afficheFormulaireAjoutjoueur(){
-    ?>
-    <h1>Insertion d'un nouveau joueur</h1>        
-    <form action="EX3_InsererJoueurs.php" method="post">
-        <fieldset> 
-            <label for="id_joueur">Nom joueur : </label>
-            <input type="text" name="joueur" id="id_joueur" size="20" required /><br />
-            <label for="id_equipe">Nom equipe : </label>
-            <select name="equipe" id="id_equipe" required>
-                <?php
-                try {  
-                    $connBD = connexionBD();
-                    $req = "SELECT DISTINCT nom_equipe, num_equipe FROM equipes";
-                    $Equipe = $connBD->query($req);
-                    if ($Equipe) {
-                        $tab = $Equipe->fetchAll();    
-                        foreach($tab as $value) {
-                            echo '<option value="'.$value['num_equipe'].'">'. $value['nom_equipe'].'</option>';        
-                        }
-                    }
-                } 
-                catch (PDOException $e) {
-                    echo 'Erreur formulaire ajout : ' . $e->getMessage();
-                }      
-                ?>
-            </select><br />
-            <input type="submit" value="Insérer"/>
-        </fieldset>
-    </form>
-    <?php
-}
-
-// EX3 : Insertion d'un joueur
-function insererjoueur($joueur, $num_equipe){
-    $sortie = false;
-    try {    
-        $connBD = connexionBD();
-        $stmt = $connBD->prepare("SELECT nom_joueur FROM joueurs WHERE nom_joueur = :nom AND num_equipe = :eq");
-        $stmt->execute(['nom' => trim($joueur), 'eq' => (int)$num_equipe]);
-        $tab = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (!empty($tab)) {
-            $sortie = "Le joueur existe déjà";
-        } else {
-            $maxRes = $connBD->query("SELECT MAX(num_joueur) AS max_id FROM joueurs")->fetch(PDO::FETCH_ASSOC);
-            $nextId = ($maxRes['max_id'] ?? 0) + 1;
-            
-            $insert = $connBD->prepare("INSERT INTO joueurs (num_joueur, nom_joueur, num_equipe) VALUES (:id, :nom, :eq)");
-            $insert->execute(['id' => $nextId, 'nom' => trim($joueur), 'eq' => (int)$num_equipe]);
-            $sortie = "Insertion réussie du joueur : " . htmlspecialchars($joueur);
-        }        
-    }    
-    catch (Exception $e) {        
-        echo "Erreur insererjoueur : " . $e->getMessage();        
-    }
-    return $sortie;
-}
-
-// Authentification
-function verifierConnexion($u, $p) {
-    try {
-        $db = connexionAuthBD();
-        $stmt = $db->prepare("SELECT * FROM users WHERE username = :u AND password = :p");
-        $stmt->execute(['u' => $u, 'p' => $p]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        return false;
-    }
-}
 ?>

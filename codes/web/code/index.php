@@ -1,54 +1,85 @@
 <?php
-session_start();
-require_once('fonctions.php');
+    session_start();
+    include_once "fonctions.php";
 
-$message = '';
-if (isset($_GET['logout'])) {
-    session_destroy();
-    header("Location: index.php");
-    exit;
-}
-
-if (isset($_POST['login'])) {
-    $user = verifierConnexion($_POST['username'] ?? '', $_POST['password'] ?? '');
-    if ($user) {
-        $_SESSION['user'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
-    } else {
-        $message = "Identifiants invalides.";
-    }
-}
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8">
-    <title>Liste des joueurs ETU 2025</title>
-    <link href="style.css" rel="stylesheet" type="text/css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVDThèque - Accueil</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <?php if (!isset($_SESSION['user'])): ?>
-        <h1>Connexion à l'application Rugby</h1>
-        <?php if ($message) echo "<p style='color:red;'>$message</p>"; ?>
-        <form method="post" action="index.php">
-            <fieldset>
-                <legend>Authentification</legend>
-                <p><label>Identifiant : <input type="text" name="username" required></label></p>
-                <p><label>Mot de passe : <input type="password" name="password" required></label></p>
-                <p><input type="submit" name="login" value="Se connecter"></p>
-                <small>Comptes : <code>admin</code> / <code>admin</code> ou <code>etudiant</code> / <code>etudiant</code></small>
-            </fieldset>
-        </form>
-    <?php else: ?>
-        <p>Connecté : <strong><?= htmlspecialchars($_SESSION['user']) ?></strong> (rôle : <?= htmlspecialchars($_SESSION['role']) ?>) | <a href="index.php?logout=1">Déconnexion</a></p>
-        <h1>Menu principal</h1>
-        <ul>
-            <li><a href="EX1_ListerJoueurs.php">Lister</a></li>
-            <li><a href="EX2_listejoueursParEquipe.php">Lister par équipe</a></li>
-            <?php if ($_SESSION['role'] === 'admin'): ?>
-                <li><a href="EX3_InsererJoueurs.php">Insérer (réservé admin)</a></li>
-            <?php endif; ?>
-        </ul>
-    <?php endif; ?>
+    
+    <header>
+        <h1>DVDThèque - Accueil</h1>
+        <?php
+        if(!empty($_SESSION) && isset($_SESSION["mail"]) && isset($_SESSION["statut"])) {
+                echo '<p>Connecté en tant que '.$_SESSION["mail"].'</p>';
+                ?>
+                <form method="POST" action="connexion.php">
+                    <button type="submit" name="deconnexion" value="true">Déconnexion</button>
+                </form>
+
+                <?php
+
+                if ($_SESSION["statut"] == "admin") {
+                    echo "<p>Statut: Administrateur <p>";
+                }
+                else {
+                    echo "<p>Statut: Utilisateur</p>";
+                }
+            }
+            else {
+                echo "<p>Statut: Déconnecté</p>";
+            }
+        ?>
+        <hr>
+    </header>
+
+    <nav>
+        <?php
+        if (isset($_SESSION) && isset($_SESSION["statut"])) {
+            // si le statut est admin, on affiche toutes les pages
+            if ($_SESSION["statut"] == "admin") {
+                echo '<a href="index.php">Menu principal</a><br>';
+                echo '<a href="connexion.php">Page de connexion</a><br>';
+                echo '<a href="insertion.php">Insérer des DVDs</a><br>';
+                echo '<a href="modification.php">Modifier des DVDs</a><br>';
+                echo '<a href="suppression.php">Supprimer des DVDs</a><br>';
+            }
+            else {
+                // sinon, seulement certaines
+                echo '<a href="index.php">Menu principal</a><br>';
+                echo '<a href="connexion.php">Page de connexion</a><br>';
+            }
+        }
+        ?>
+        <hr>
+    </nav>
+
+    <article>
+        <?php 
+        if (empty($_SESSION)) {
+            echo "<p>Déconnecté. Redirection...";
+            redirect("connexion.php", 2);
+        } else {
+            echo "<h2>DVDs en Stock</h2>";
+            $dvdEtReals = getFilmEtRealisateur();
+            afficheTableauAvecAffiche($dvdEtReals);
+        }
+
+        ?>
+        <hr>
+    </article>
+
+
+    <footer>
+        <p>Application développée par Valentin PIERRE et Thomas LE FLOC'H</p>
+        <p>R&T Lannion - 2025</p>
+    </footer>
 </body>
 </html>

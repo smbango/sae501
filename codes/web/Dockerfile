@@ -1,11 +1,11 @@
 FROM php:8.2-apache
 
-RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev \
-    && docker-php-ext-install pdo pdo_sqlite \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+	libsqlite3-dev \
+	libpng-dev \
+	libjpeg-dev \
+	libfreetype6-dev \
+	&& docker-php-ext-configure gd --with-freetype --with-jpeg \
+	&& docker-php-ext-install -j$(nproc) pdo_sqlite gd
 
-COPY code/ /var/www/html/
-
-RUN mkdir -p /var/data && chmod 777 /var/data
-
-EXPOSE 80
+RUN a2enmod rewrite
