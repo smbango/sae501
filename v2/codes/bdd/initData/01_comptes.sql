@@ -1,0 +1,11 @@
+CREATE DATABASE IF NOT EXISTS comptes;
+USE comptes;
+
+CREATE TABLE IF NOT EXISTS utilisateurs (
+    EMAIL VARCHAR(255) NOT NULL,
+    PASS VARCHAR(255) NOT NULL,
+    STATUT VARCHAR(50) NOT NULL DEFAULT 'Etudiant',
+    PRIMARY KEY(EMAIL)
+);
+
+INSERT IGNORE INTO utilisateurs (EMAIL, PASS, STATUT) VALUES ('superuser@test.fr', 'L@nnion', 'Administrateur');
